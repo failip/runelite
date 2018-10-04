@@ -28,7 +28,10 @@ package net.runelite.client.plugins.chatcommands;
 import com.google.common.eventbus.Subscribe;
 import com.google.inject.Provides;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.regex.Matcher;
@@ -86,12 +89,17 @@ public class ChatCommandsPlugin extends Plugin implements ChatboxInputListener
 	private static final Pattern RAIDS_PATTERN = Pattern.compile("Your completed (.+) count is: <col=ff0000>(\\d+)</col>.");
 	private static final Pattern WINTERTODT_PATTERN = Pattern.compile("Your subdued Wintertodt count is: <col=ff0000>(\\d+)</col>.");
 	private static final Pattern BARROWS_PATTERN = Pattern.compile("Your Barrows chest count is: <col=ff0000>(\\d+)</col>.");
-	private static final String TOTAL_LEVEL_COMMAND_STRING = "!total";
-	private static final String PRICE_COMMAND_STRING = "!price";
-	private static final String LEVEL_COMMAND_STRING = "!lvl";
+	private static final String[] TOTAL_LEVEL_COMMAND_STRINGS = new String[] {"!total", "!overall", "!totallevel", "!totallvl"};
+	private static final Set<String> TOTAL_LEVEL_COMMAND_SET = new HashSet<>(Arrays.asList(TOTAL_LEVEL_COMMAND_STRINGS));
+	private static final String[] PRICE_COMMAND_STRINGS = new String[] {"!price", "!ge", "!value", "!cost"};
+	private static final Set<String> PRICE_COMMAND_SET = new HashSet<>(Arrays.asList(PRICE_COMMAND_STRINGS));
+	private static final String[] LEVEL_COMMAND_STRINGS = new String[] {"!lvl", "!level", "!levl", "!lvel"};
+	private static final Set<String> LEVEL_COMMAND_SET = new HashSet<>(Arrays.asList(LEVEL_COMMAND_STRINGS));
 	private static final String CLUES_COMMAND_STRING = "!clues";
-	private static final String KILLCOUNT_COMMAND_STRING = "!kc";
-	private static final String CMB_COMMAND_STRING = "!cmb";
+	private static final String[] KILLCOUNT_COMMAND_STRINGS = new String[] {"!kc", "!kills", "!killcount"};
+	private static final Set<String> KILLCOUNT_COMMAND_SET = new HashSet<>(Arrays.asList(KILLCOUNT_COMMAND_STRINGS));
+	private static final String[] CMB_COMMAND_STRINGS = new String[] {"!combat", "!cmb", "!cbt", "!cb"};
+	private static final Set<String> CMB_COMMAND_SET = new HashSet<>(Arrays.asList(CMB_COMMAND_STRINGS));
 
 	private final HiscoreClient hiscoreClient = new HiscoreClient();
 	private final KillCountClient killCountClient = new KillCountClient();
@@ -184,32 +192,34 @@ public class ChatCommandsPlugin extends Plugin implements ChatboxInputListener
 		}
 
 		String message = setMessage.getValue();
+		String[] splitMessage = message.split(" ", 2);
+		String command = splitMessage[0].toLowerCase();
 		MessageNode messageNode = setMessage.getMessageNode();
 
 		// clear RuneLite formatted message as the message node is
 		// being reused
 		messageNode.setRuneLiteFormatMessage(null);
 
-		if (config.lvl() && message.toLowerCase().equals(TOTAL_LEVEL_COMMAND_STRING))
+		if (config.lvl() && TOTAL_LEVEL_COMMAND_SET.contains(command))
 		{
 			log.debug("Running total level lookup");
 			executor.submit(() -> playerSkillLookup(setMessage, "total"));
 		}
-		else if (config.lvl() && message.toLowerCase().equals(CMB_COMMAND_STRING))
+		else if (config.lvl() && CMB_COMMAND_SET.contains(command))
 		{
 			log.debug("Running combat level lookup");
 			executor.submit(() -> combatLevelLookup(setMessage.getType(), setMessage));
 		}
-		else if (config.price() && message.toLowerCase().startsWith(PRICE_COMMAND_STRING + " "))
+		else if (config.price() && PRICE_COMMAND_SET.contains(command))
 		{
-			String search = message.substring(PRICE_COMMAND_STRING.length() + 1);
+			String search = splitMessage[1].toLowerCase();
 
 			log.debug("Running price lookup for {}", search);
 			executor.submit(() -> itemPriceLookup(setMessage.getMessageNode(), search));
 		}
-		else if (config.lvl() && message.toLowerCase().startsWith(LEVEL_COMMAND_STRING + " "))
+		else if (config.lvl() && LEVEL_COMMAND_SET.contains(command))
 		{
-			String search = message.substring(LEVEL_COMMAND_STRING.length() + 1);
+			String search = splitMessage[1].toLowerCase();
 
 			log.debug("Running level lookup for {}", search);
 			executor.submit(() -> playerSkillLookup(setMessage, search));
@@ -221,14 +231,14 @@ public class ChatCommandsPlugin extends Plugin implements ChatboxInputListener
 		}
 		else if (config.clue() && message.toLowerCase().startsWith(CLUES_COMMAND_STRING + " "))
 		{
-			String search = message.substring(CLUES_COMMAND_STRING.length() + 1);
+			String search = splitMessage[1].toLowerCase();
 
 			log.debug("Running clue lookup for {}", search);
 			executor.submit(() -> playerClueLookup(setMessage, search));
 		}
-		else if (config.killcount() && message.toLowerCase().startsWith(KILLCOUNT_COMMAND_STRING + " "))
+		else if (config.killcount() && KILLCOUNT_COMMAND_SET.contains(command))
 		{
-			String search = message.substring(KILLCOUNT_COMMAND_STRING.length() + 1);
+			String search = longBossName(splitMessage[1].toLowerCase());
 
 			log.debug("Running killcount lookup for {}", search);
 			executor.submit(() -> killCountLookup(setMessage.getType(), setMessage, search));
